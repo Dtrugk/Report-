@@ -1,17 +1,19 @@
-# Game Hacking Report
+## Game Hacking Report
 
-### Introduction
-Game hacking involves understanding the underlying memory structures of a game, identifying objects of interest during runtime, and manipulating their values to observe how they affect the game's behavior. This report outlines the step-by-step process for memory scanning, retrieving multi-level pointers, and modifying memory bytes to achieve desired outcomes in a controlled environment. Finally develop a functional program to do all the above things automatically. 
-
----
 
 ### Tools
 
+- **PE Analysis**: PEStudio 
 - **Memory Scanning**: CheatEngine
 - **Reverse Engineering**: 
   - Static Analysis: IDAPro 7.7
   - Dynamic Analysis: X32Dbg 
 - **Development**: Visual Studio
+
+### Target 
+- **Game**: Age of Empires: Rise of rome
+- **Platform**: Windows
+- **Architecture**: 32-bit
 
 ---
 
@@ -19,7 +21,7 @@ Game hacking involves understanding the underlying memory structures of a game, 
 
 ### Memory Scanning
 #### Objectives:
-To locate the memory address of in-game objects during runtime, enabling further analysis and modification.
+To locate the memory address of in-game objects during runtime, enable further analysis and modification.
 
 #### Theory:
 1. **Identify the Object of Interest:**
@@ -37,15 +39,15 @@ To locate the memory address of in-game objects during runtime, enabling further
 
 #### Practice:
 
-- Finding for food value by first scan for floating value of any resourses in the game and spent some to change values then perform second scan:
+- Finding for food value by first scan for floating value of any resources in the game and spent some to change values then perform second scan:
 
-![img_2.png](img_2.png)
-- After retrieve address of the resourse at `0x0365C100`, we could modify its to see if its actually the correct address: 
-![img_3.png](img_3.png)
+![img_2.png](Images/img_2.png)
+- After retrieve address of the resource at `0x0365C100`, we could modify it's to see if it's actually the correct address: 
+![img_3.png](Images/img_3.png)
 
-- We could also do this in X32Dbg by search for pattern. But the process is much more complicated than using CheatEngine. But the hex view of X32Dbg might be worth it: 
-![img_4.png](img_4.png)
-- At the same memory location, we also found others resources: 
+- We could also do this in X32Dbg by search for a pattern. But the process is much more complicated than using CheatEngine. But the hex view of X32Dbg might be worth it: 
+![img_4.png](Images/img_4.png)
+- At the same memory location, we also found other resources: 
   -  Food 
   -  Wood
   -  Gold 
@@ -53,11 +55,11 @@ To locate the memory address of in-game objects during runtime, enabling further
   -  Max Population
   -  Current Population 
   -  Age
-  -  Technology Count (Changing this will take affect on the game but the icons to update will still be there)
+  -  Technology Count (Changing this will take effect on the game, but the icons to update will still be there)
   -  Player Scores 
-  -  Map Exploration (We couldn't patch this value however we could know which asm instruction access this memory location then do more reversing to get the logic of its)
+  -  Map Exploration (We couldn't patch this value, however, we could know which asm instruction access this memory location then do more reversing to get the logic of its)
 
-- We have found the right address. However this is a dynamic address. Which mean if the game start again, the address going to be diffirent. We need to find static pointer that always point to this dynamic address, this way we could know the address of player's object everytime the game start. 
+- We have found the right address. However, this is a dynamic address. Which means if the game starts again, the address is going to be different. We need to find a static pointer that always points to this dynamic address, this way we could know the address of the player's object everytime the game starts. 
 ---
 
 ### Retrieve Multi-Level Pointers
@@ -79,15 +81,15 @@ To find the pointer that consistently points to the memory location of the objec
 
 #### Practice:
 - How the multi-level Pointer works:
-  - Very simple, it dereferences a next pointer to get to the next pointer until it reach the final destination
+  - Basic, it dereferences a next pointer to get to the next pointer until it reaches the final destination
 - This step is straight forward, we just need to perform a pointer scan for the address:
-![img_5.png](img_5.png)
-- We could use any of theses pointers found in the table scan with base address is `Empiresx.exe`
-- By deferencing the pointer we could get the final address of the player object:
+![img_5.png](Images/img_5.png)
+- We could use any of these pointers found in the table scan with base address is `Empiresx.exe`
+- By referencing the pointer, we could get the final address of the player object:
   
-![img_6.png](img_6.png)
+![img_6.png](Images/img_6.png)
 
-- Deferencing each pointer to get to the final Address by using `ReadProcessMemory` API, iterate through each pointer to get to the final address:
+- Referencing each pointer to get to the final Address by using `ReadProcessMemory` API, iterate through each pointer to get to the final address:
 ```c
  // +10000 Food, Wood, Gold, Stone 
  HWND hGameWindow = FindWindow(NULL, L"Age of Empires Expansion");
@@ -138,7 +140,7 @@ To manipulate the value stored at the identified memory address and observe its 
    - Use programming languages like Python or C++ to create a trainer or script that automates memory modification.
 
 #### Practice:
-- After getting the final address of the player object, we could modify the value of the resources to see if it actually take affect on the game. Base on the hex view of the game, we could see that the resources are stored in the memory as float value and each resources are stored 4 offset away from each other.
+- After getting the final address of the player object, we could modify the value of the resources to see if it actually takes effect on the game. Based on the hex view of the game, we could see that the resources are stored in the memory as float value and each resource is stored 4 offset away from each other.
 - We could use `WriteProcessMemory` API to write the new value to the memory location:
 ```c
 float currentFood;
@@ -165,7 +167,7 @@ WriteProcessMemory(processHandle, (LPVOID)(pointsAddress + 4), &newWood, sizeof(
 WriteProcessMemory(processHandle, (LPVOID)(pointsAddress + 8), &newStone, sizeof(newStone), 0);
 WriteProcessMemory(processHandle, (LPVOID)(pointsAddress + 12), &newGold, sizeof(newGold), 0);
 ```
-- Each resources are stored 4 offset away from each other. We could use the same method to modify the resources.
+- Each resource is stored 4 offsets away from each other. We could use the same method to modify the resources.
 - Max Population: 
 ```C
 DWORD offsetGameToBaseAddress = 0x003C4B18;
@@ -215,21 +217,30 @@ WriteProcessMemory(processHandle, (LPVOID)(pointsAddress + 44), &resetPop, sizeo
 ### Reversing Game Logic 
 
 1. Game Settings Reversing:
-- Before the game start it will load game settings. We can directly modify this setting into the game binaries
+- Before the game starts, it will load game settings. We can directly modify this setting into the game binaries
 
 ![img.png](Images/img.png)
 ![img.png](img.png)
 
-- Spectating the memory region we can see alots of others settings too: 
+- Spectating the memory region, we can see lots of other settings too: 
 
-![img_1.png](img_1.png)
+![img_1.png](Images/img_1.png)
+
+- We could also modify game sounds. By spectating the memory region, we could see the sound settings:
+
+![img_1.png](Images/img_18.png) 
+
+- We could patch this value to changing the game sound to different soundtracks in our favor. Or simply hook the calls to redirect to our custom soundtracks.
+- Install hook location:
+![img_2.png](Images/img_19.png) 
+
 ---
 2. Game Logic Reversing:
 - We could also reverse the game logic to understand how the game works and how the game access the memory location. This way we could understand the game better and could make more complex cheats.
-![img_7.png](img_7.png)
-- The above function is function adding resources to the player object. We could patch this function to add more resources to the player object. To find it, set a break point at the memory location of the function then run the game and add resources to the player object. The break point will be hit and we could see the function that add resources to the player object.
+![img_7.png](Images/img_7.png)
+- The above function is function adding resources to the player object. We could patch this function to add more resources to the player object. To find it, set a break point at the memory location of the function then run the game and add resources to the player object. The break point will be hit, and we could see the function that adds resources to the player object.
 
-- ![img_8.png](img_8.png)
+- ![img_8.png](Images/img_8.png)
 - Function asm code:
 ```asm
 sub_45DF10      proc near               ; CODE XREF: sub_4F9040+4B↓p
@@ -261,8 +272,13 @@ sub_45DF10      proc near               ; CODE XREF: sub_4F9040+4B↓p
 fadd dword ptr [ecx+eax*4] -> fadd dword ptr [ecx+eax*4] + 10000
 fadd dword ptr [ecx+eax*4] -> fmul dword ptr [ecx+eax*4]
 ```
-- The function also responsible for all the resources modification. We could patch this function to add more resources to the player object.
-![img_12.png](img_12.png)
+- The function is also responsible for all the resource modification. We could patch this function to `add` more resources to the player object.
+- Before Hook:
+
+    ![img_1.png](img_1.png)
+
+- After Hook:
+![img_12.png](Images/img_12.png)
 - Redirect instruction flow to our code and jump back after executing our code:
 ```c
 DWORD OriginalAddress = 0x0045DF2A;                 // Address of the original function
@@ -279,12 +295,12 @@ __declspec(naked) void HookFunc() {
 	}
 }
 ```
+- Our function in memory:
+![img_13.png](Images/img_13.png)
+- However, this function is used by all player objects. If we patch this function, all player objects will have the same effect. This also leads us to another player object: 
 
-![img_13.png](img_13.png)
-- However this function is used by all player object. If we patch this function, all player object will have the same affect. This also lead we to other's player object: 
-
-![img_9.png](img_9.png)
-- Additional to directly patching the instruction, we also could hook the specific address to perform function detouring to add more resources to the player object.
+![img_9.png](Images/img_9.png)
+- Additionally, to directly patching the instruction, we also could hook the specific address to perform function detouring to add more resources to the player object.
 - In our case, we could hook at: `fld dword ptr ss:[esp+8]` which is `0x0045DF23` and `jmp` back at `0045DF2A`
 ```asm
 0045DF1A | 66:3B41 4C                 | cmp ax,word ptr ds:[ecx+4C]                     |
@@ -296,272 +312,79 @@ __declspec(naked) void HookFunc() {
 0045DF2D | 8D0481                     | lea eax,dword ptr ds:[ecx+eax*4]                |
 0045DF30 | D918                       | fstp dword ptr ds:[eax]                         |
 ```
+- Applying the same method (Break and Trace), we can also find other functions that related to the game logic: 
+  1. Function at `0x004F3AE0` that responsibly subtracts resources from the player object when spending resources
+![img_2.png](img_2.png)
+   ```asm
+   004F3AE0 ; char __thiscall ResourcesSubstract(_DWORD *this, int, float, int)
+   ```
 
+     ```asm
+   // Instruction Responsible for subtracting resources
+     loc_4F3B63:                  ; CODE XREF: ResourcesSubstract+6C↑j
+     .text:004F3B63                 fld     dword ptr [ecx+edx]
+     .text:004F3B66                 fsub    st, st(1)
+     .text:004F3B68                 fstp    dword ptr [ecx+edx]
+     .text:004F3B6B                 fstp    st(0)
+     ``` 
+     - Function at `004F3A10` that responsible for adding resources to the player object when spending resources. We could modify this function to add more resources to the player object when spending resources. 
+     ```asm
+   // Patching fsub to fadd
+   .text:004F3B66                 fadd    st, st(1)
+     ```
+     - We could also use the hook method to hook at `.text:004F3B63                 fld     dword ptr [ecx+edx]` to jump to our code cave then jump back to the original code.
+     - Code Cave for function detouring:
+     ```asm
+    DWORD OriginalAddress = 0x004F3B66;                 
+    __declspec(naked) void HookFunc() {
+        __asm {
+            // Modify the floating-point value being loaded
+            mov dword ptr[esp + 8], 0   
+            // Execute the original instructions
+            fld dword ptr[esp + 8]          
+    
+            // Jump back to the original code
+            jmp OriginalAddress		        // Jump back to the original code
+        }
+    }
+  ```
+   2. Function `0x004AF2E0` calculates damage deals by units to other building units 
+    ```asm
+    .text:004AF2E0 sub_4AF2E0      proc near               ; DATA XREF: .rdata:0054D138↓o
+    .text:004AF2E0
+    .text:004AF2E0 var_4           = dword ptr -4
+    .text:004AF2E0 arg_0           = dword ptr  4
+    .text:004AF2E0 arg_4           = dword ptr  8
+    .text:004AF2E0 arg_8           = dword ptr  0Ch
+    .text:004AF2E0 arg_C           = dword ptr  10h
+    .text:004AF2E0 arg_10          = dword ptr  14h
+    ```
+  - Instruction at `0x004AF368` that calculates the damage deals by units to other building units
+  ```asm 
+    .text:004AF364                 fld     [esp+10h+var_4]
+    .text:004AF368                 fsub    dword ptr [edi+30h]
+    .text:004AF36B                 fcomp   ds:dbl_54D350
+    .text:004AF371                 fnstsw  ax
+    .text:004AF373                 test    ah, 1
+  ```
+   3. Arrays of current units and buildings in the game
+    - However, there is no more we can do about it other than changing its value 
+![img_3.png](img_3.png)
+- Many more functions that related to the game logic, but it would crash the game if we patch it. Eg: Draw map, Resource generation, etc.. But since the game codebase is too large, we only focus on the resources and player objects.
+ 
 #### String References
 - We could also find the string references in the game binaries. This could help us to understand the game better and could make more complex cheats.
 - We could use IDAPro to find the string references in the game binaries.
-![img_10.png](img_10.png)
-- If you familiar with the game, you would recognize the string references. These are game cheat codes. We could use these cheat codes to make the game easier.
-- All these strings are all call from the same function. We could patch this function to enable all the cheat codes in the game.
+![img_10.png](Images/img_10.png)
+- If you are familiar with the game, you would recognize the string references. These are game cheat codes. We could use these cheat codes to make the game easier.
+- All these strings are all called from the same function. We could patch this function to enable all the cheat codes in the game.
 - Decompiled function:
 ```asm
 int __thiscall sub_5061E0(_DWORD *this, int a2, char *Buffer)
-{
-  int v4; // eax
-  int v6; // eax
-  int v7; // eax
-  int v8; // ecx
-  int v9; // ecx
-  int v10; // [esp+10h] [ebp-508h] BYREF
-  int v11; // [esp+14h] [ebp-504h] BYREF
-  char v12[512]; // [esp+18h] [ebp-500h] BYREF
-  unsigned __int8 String[256]; // [esp+218h] [ebp-300h] BYREF
-  char v14[256]; // [esp+318h] [ebp-200h] BYREF
-  char v15[256]; // [esp+418h] [ebp-100h] BYREF
-
-  if ( !Buffer )
-    return 0;
-  if ( a2 < 0 )
-    return 0;
-  if ( a2 >= *(__int16 *)(this[253] + 60) )
-    return 0;
-  strcpy((char *)String, Buffer);
-  _mbsupr(String);
-  ObfuscateCheatCode((char *)String, v12, 512);
-  if ( !sub_41BD50(this) )
-    return 0;
-  if ( !strcmp(v12, aCamJdw) && sub_41BD00(this) )
-  {
-    ProcessCheat(102);
-    return 1;
-  }
-  if ( strstr((const char *)String, aStormbilly) )
-  {
-    ProcessCheat(14);
-    return 1;
-  }
-  if ( strstr((const char *)String, aConvertThis) )
-  {
-    ProcessCheat(15);
-    return 1;
-  }
-  if ( strstr((const char *)String, aBigMomma) )
-  {
-    ProcessCheat(16);
-    return 1;
-  }
-  if ( strstr((const char *)String, off_560098) )
-  {
-    ProcessCheat(17);
-    return 1;
-  }
-  if ( strstr((const char *)String, aGrantlinkspenc) )
-  {
-    ProcessCheat(18);
-    return 1;
-  }
-  if ( strstr((const char *)String, aKingArthur) )
-  {
-    ProcessCheat(19);
-    return 1;
-  }
-  if ( !strcmp(v12, aWDwChxdw) )
-  {
-    ProcessCheat(0);
-    return 1;
-  }
-  if ( !strcmp(v12, aAmC3c2WAm) )
-  {
-    ProcessCheat(1);
-    return 1;
-  }
-  if ( !strcmp(v12, aHx3ccwAmDwLCAm) )
-  {
-    ProcessCheat(2);
-    return 1;
-  }
-  if ( !strcmp(v12, aL1zAmHx) )
-  {
-    ProcessCheat(3);
-    return 1;
-  }
-  if ( !strcmp(v12, aJmLdw1zJ3cChxd) )
-  {
-    ProcessCheat(4);
-    return 1;
-  }
-  if ( !strcmp(v12, aJw1LJmLdwCLAm) )
-  {
-    ProcessCheat(7);
-    return 1;
-  }
-  if ( !strcmp(v12, asc_55FFC8) )
-  {
-    ProcessCheat(8);
-    return 1;
-  }
-  if ( !strcmp(v12, aHxCwHxLdw) )
-  {
-    ProcessCheat(10);
-    return 1;
-  }
-  if ( !strcmp(v12, aHx3ccwLAm) )
-  {
-    ProcessCheat(11);
-    return 1;
-  }
-  if ( !strcmp(v12, aCamJ1Hx) )
-  {
-    ProcessCheat(12);
-    return 1;
-  }
-  if ( !strcmp(v12, aL3cC) )
-  {
-    ProcessCheat(13);
-    return 1;
-  }
-  if ( sub_41BD00(this) )
-  {
-    if ( !strcmp(v12, aLamLamLam) )
-    {
-      ProcessCheat(100);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL1) )
-    {
-      ProcessCheat(201);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL2) )
-    {
-      ProcessCheat(202);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL3) )
-    {
-      ProcessCheat(203);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL4) )
-    {
-      ProcessCheat(204);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL5) )
-    {
-      ProcessCheat(205);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL6) )
-    {
-      ProcessCheat(206);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL7) )
-    {
-      ProcessCheat(207);
-      return 1;
-    }
-    if ( !strcmp(v12, aCwL9) )
-    {
-      ProcessCheat(208);
-      return 1;
-    }
-  }
-  if ( !strcmp(v12, aHxLCwhxL) )
-  {
-    ProcessCheat(101);
-    return 1;
-  }
-  if ( !strcmp(v12, aAm1L1zdw) )
-  {
-    ProcessCheat(103);
-    return 1;
-  }
-  if ( strcmp(v12, a1zhxLhx) )
-  {
-    if ( !strcmp(v12, aWAmwWAmDwLWLsS) )
-    {
-      ProcessCheat(20);
-      return 1;
-    }
-    if ( !strcmp(v12, a3cLdwhx1zam) )
-    {
-      ProcessCheat(21);
-      return 1;
-    }
-    if ( !strcmp(v12, a4313ccw) )
-    {
-      ProcessCheat(23);
-      return 1;
-    }
-    if ( !strcmp(v12, aHxJhx) )
-    {
-      ProcessCheat(22);
-      return 1;
-    }
-    if ( !strcmp(v12, a1AmL1) )
-    {
-      sub_4EBBB0(this[618] == 0);
-      return 1;
-    }
-    if ( !strcmp(v12, aL1zHx) )
-    {
-      ProcessCheat(220);
-      return 1;
-    }
-    if ( !strcmp(v12, aAmTamhxChxw) )
-    {
-      ProcessCheat(230);
-      return 1;
-    }
-    if ( !strcmp(v12, aDwJm1z) )
-    {
-      ProcessCheat(231);
-      return 1;
-    }
-    sscanf((const char *const)String, "%s ", v14);
-    if ( !strcmp(v14, aSelectobj) )
-    {
-      sscanf(Buffer, "%*s %d ", &v10);
-      v6 = sub_5230D0(v10);
-      if ( v6 )
-      {
-        *(_BYTE *)(v6 + 54) = 1;
-        *(_DWORD *)(*(_DWORD *)(*(_DWORD *)(this[253] + 64) + 4 * a2) + 308) = v6;
-      }
-    }
-    if ( !strcmp(v14, aRunplay) )
-    {
-      sscanf(Buffer, "%*s %d %s %d ", &v11, v15, &v10);
-      v7 = sub_40ECF0(v15);
-      if ( v7 != -1 )
-      {
-        v8 = *(_DWORD *)(*(_DWORD *)(this[253] + 64) + 4 * a2);
-        (*(void (__thiscall **)(int, int, int, int))(*(_DWORD *)v8 + 80))(v8, v11, v10, v7);
-        return 1;
-      }
-      return 1;
-    }
-    if ( !strcmp(v12, aSAmJ1) )
-    {
-      v9 = *(_DWORD *)(*(_DWORD *)(this[253] + 64) + 4 * a2);
-      (*(void (__thiscall **)(int, int, _DWORD, _DWORD, _DWORD, _DWORD))(*(_DWORD *)v9 + 84))(v9, a2, 0, 0, 0, 0);
-      return 1;
-    }
-    return 0;
-  }
-  v4 = sub_41A260(this);
-  sub_45EC20(v4);
-  if ( this[109] == 6 && this[110] == 1 )
-    (*(void (__thiscall **)(_DWORD *, _DWORD, _DWORD))(*this + 16))(this, 0, 0);
-  (*(void (__thiscall **)(_DWORD *, _DWORD))(*this + 20))(this, 0);
-  return 1;
-}
 ```
 - I have already reversed the function. We could patch this function to enable all the cheat codes in the game. 
-- It check user input then obfuscate it to match the strings store in the game memory. 
-- If the input obfuscated string match the string in the game memory, it will return an integer then pass it to second process cheat function. Otherwise it would print out as chat message. 
+- It checks user input then obfuscates it to match the string store in the game memory. 
+- If the input obfuscated string match the string in the game memory, it will return an integer then pass it to the second process cheat function. Otherwise, it would print out as a chat message. 
 ```asm
 char *__cdecl ObfuscateCheatCode(char *a1, char *a2, int InputLength)
 {
@@ -598,11 +421,35 @@ char *__cdecl ObfuscateCheatCode(char *a1, char *a2, int InputLength)
   return result;
 }
 ```
-- Base on the above obfuscate function, i have developed a function to deobfuscate all the strings in the memory: 
-![img_11.png](img_11.png)
+- Based on the above obfuscate function, I have developed a function to deobfuscate all the strings in the memory: 
+![img_11.png](Images/img_11.png)
 
-- Now we have known the cheat logic, i could perform dymamic analysis to find the function that call this function then patch it to enable all the cheat codes in the game.
+- Now we have known the cheat logic, I could perform dymamic analysis to find the function that calls this function then patch it to enable all the cheat codes in the game.
 - Reversing how the cheat works: 
-  - `Steroids`
-## Development
+  - `Steroids` cheat code. We already know cheat code for `steroids` is `1$ ^Am%%%^#L?>1$`. Find references to this string in IDA then set a break point at the memory location of the function that calls this string. Run the game and type the cheat code. The break point will be hit, and we could see the function that calls this string.
+    ![img_1.png](Images/img_14.png)
+    - Goto the function that calls the string and patch it to enable all the cheat codes in the game. 
+      ![img_1.png](Images/img_15.png)!
+    - Break and trace to understand the asm flow ![img_1.png](Images/img_16.png)
+
+    - Basically, the cheat store user input in memory and obfuscate it to match the string in the game memory. If the string matches, it will return an integer then pass it to the second process cheat function. Otherwise, it would print out as a chat message (Left). 
+    - But this specific cheat has an interesting functionality which can be toggled on/off. So it has to store current cheat status somewhere in the memory. Look at the asm at instruction `test edx,edx`, it checks the cheat status. We could patch this instruction to always return true then the cheat will always be enabled. 
+  - The same method applies to every other cheats in the game. 
+## Result 
+1. Result overview
+   - Successfully implement Injector to inject DLL to a game process. 
+
+   - Successfully found address of our player object and resources along with other player objects current resources. 
+
+   - Successfully found the pointer that consistently points to the memory location of the object, even after the game restarts.
+
+   - Successfully modified the value stored at the identified memory address and observed its effects on the game.
+
+2. Software Testing 
+    - Injector for DLL Injection (Using basic WinAPI calls)
+    - Function to automate finding target address: Function takes 4 Arguments DWORD baseAddress, DWORD offsets[], HANDLE processHandle, int size
+    - Function to adding resources: After getting Address, we just need to write to it: Adding all resources to a custom float value (Current Setting **10000**)
+    - Function to modify population: After getting Address, we just need to write to it: Modify population to unlimited (Default limits **200**)
+    - Hook Function to redirect a code cave for custom instruction (Function Detour And Function Hooking): Modify Add, Subtract resources, Damage deals by units to building 
+    - Export Function for DLL: Work as API for external Executable to use 
 
